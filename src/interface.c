@@ -8,19 +8,25 @@ void print_welcome(void)
     printf("=====================================\n");
 }
 
-void write_options_menu(void)
+
+
+void write_options_menu(char *msg)
 {
-    printf("");
-    clearScreen();
+    printf("WRITE TO THE DEVICE\n");
+    printf("1. Write a message\n");
+    printf("2. Send ELF\n");
+
+    printf("Please, choose [1-2]: ");
+    int c = getchar();
+    while (c != '1' && c != 3)
+    {
+        if (c == '2') printf("Option [2] is not yet implemented!\n");
+        c = getchar();
+    }
+
+    if (c == '1')
+    {
+        printf("Enter a string: ");
+        scanf("%255s", msg);
+    }
 }
-
-void clearScreen()
-{
-  const char *CLEAR_SCREEN_ANSI = "\e[1;1H\e[2J";
-  write(STDOUT_FILENO, CLEAR_SCREEN_ANSI, 12);
-}
-
-// static void interface_selector(char *port)
-// {
-
-// }
