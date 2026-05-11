@@ -1,11 +1,4 @@
-#include <termios.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include <sys/select.h>
-#include <string.h>
-#include <errno.h>
+#include "../inc/uart-act-challenge.h"
 
 #define TIMEOUT_SEC 2
 
