@@ -17,6 +17,7 @@
 // serial_comm.c
 int serial_open(char *port, int baud);
 int write_to_device(int fd, char *msg);
+void write_options_menu(void);
 
 // interface.c
 void print_welcome(void);

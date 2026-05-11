@@ -22,7 +22,7 @@ int main (int argc, char *argv[])
 
     int fd = serial_open(serial, B9600);
 
-
+    write_options_menu();
     char msg[] = "hey";
     write_to_device(fd, msg);
 
