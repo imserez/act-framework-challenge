@@ -22,16 +22,27 @@ int main (int argc, char *argv[])
 
     int fd = serial_open(serial, B9600);
 
-    char msg[256];
-    write_options_menu(msg);
+    char msg[256] = "";
+    int option = write_options_menu(msg);
 
-    printf("=> Sending message [%s] to device: [%s]...\n", msg, serial);
-    write_to_device(fd, msg);
+    if (option == 3) // Send file!
+    {
+        printf("Preparing to send file...");
+    }
+    else
+    {
+        if (option == 2)
+        {
+            msg[0] = 'P';  msg[1] = 'I';  msg[2] = 'N';  msg[3] = 'G';
+        }
 
-    printf("=> Waiting device response. Timeout at [%d] seconds...\n", TIMEOUT_SEC);
+        printf("=> Sending message [%s] to device: [%s]...\n", msg, serial);
+        write_to_device(fd, msg);
 
-    wait_response(fd);
+        printf("=> Waiting device response. Timeout at [%d] seconds...\n", TIMEOUT_SEC);
 
+        wait_response(fd);
+    }
 
     printf("=> Closing [%s] before exiting...\n", serial);
     close(fd);

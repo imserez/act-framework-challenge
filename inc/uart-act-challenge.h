@@ -21,6 +21,6 @@ void wait_response(int fd);
 
 // interface.c
 void print_welcome(void);
-void write_options_menu(char *msg);
+int write_options_menu(char *msg);
 
 #endif

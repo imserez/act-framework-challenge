@@ -10,17 +10,17 @@ void print_welcome(void)
 
 
 
-void write_options_menu(char *msg)
+int write_options_menu(char *msg)
 {
     printf("WRITE TO THE DEVICE\n");
     printf("1. Write a message\n");
-    printf("2. Send ELF\n");
+    printf("2. Send PING\n");
+    printf("3. Send ELF\n");
 
-    printf("Please, choose [1-2]: ");
+    printf("Please, choose [1-3]: ");
     int c = getchar();
-    while (c != '1' && c != 3)
+    while (c < '1' || c > '3')
     {
-        if (c == '2') printf("Option [2] is not yet implemented!\n");
         c = getchar();
     }
 
@@ -29,4 +29,5 @@ void write_options_menu(char *msg)
         printf("Enter a string: ");
         scanf("%255s", msg);
     }
+    return c - '0';
 }
