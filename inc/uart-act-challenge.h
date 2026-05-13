@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <sys/select.h>
 #include <string.h>
@@ -11,7 +12,7 @@
 # define UART_ACT_CHALLENGE
 
 # define TIMEOUT_SEC 2
-# define DEFAULT_PORT "/dev/pts/2"
+# define DEFAULT_PORT "/dev/pts/4"
 # define LOG_LEVEL 2 // (min) 0,1,2 (max)
 
 // serial_comm.c

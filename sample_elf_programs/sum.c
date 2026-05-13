@@ -1,9 +1,10 @@
 int main(void)
 {
-    int a = 10;
-    int b = 20;
-    int c = 0;
+    int sum = 10 + 20;
 
-    c = a + b;
-    return (0);
+    if (sum == 30) {
+        return 1;
+    } else {
+        return 3;
+    }
 }

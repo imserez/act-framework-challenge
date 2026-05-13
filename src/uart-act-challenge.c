@@ -1,6 +1,38 @@
 #include "../inc/uart-act-challenge.h"
 
+void send_binary_file(int fd, const char *filepath) {
+    FILE *file = fopen(filepath, "rb");
+    if (!file) {
+        perror("=> [ERROR] Coult not open the .bin file");
+        return;
+    }
 
+    // calculate file size in bytes
+    fseek(file, 0, SEEK_END);
+    uint32_t size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    printf("=> Sending (LOAD)...\n");
+    // write_to_device(fd, "LOAD");
+    write(fd, "LOAD", 4);
+    usleep(200000); // safe-sleep here, to let firmware process LOAD
+
+    printf("=> Sending the program size: [%u] bytes)...\n", size);
+    write(fd, &size, sizeof(uint32_t));
+    usleep(200000);
+
+    printf("=> Sending binary...\n");
+    char buffer[1];
+    for (uint32_t i = 0; i < size; i++) {
+        fread(buffer, 1, 1, file);
+        write(fd, buffer, 1);
+        //safe-delay
+        usleep(1000);
+    }
+
+    fclose(file);
+    printf("=> File successfuly sent.\n");
+}
 
 int main (int argc, char *argv[])
 {
@@ -27,7 +59,34 @@ int main (int argc, char *argv[])
 
     if (option == 3) // Send file!
     {
-        printf("Preparing to send file...");
+        printf("Preparing to send file...\n");
+        send_binary_file(fd, "sample_elf_programs/sum.bin");
+
+        printf("=> Waiting for test output from the board...\n\n");
+        // wait for responses
+        char read_buf[256];
+        int bytes_read;
+
+        // safe-delay for test to init
+        usleep(500000);
+
+        // read the response
+        while (1) {
+            memset(read_buf, 0, sizeof(read_buf));
+            bytes_read = read(fd, read_buf, sizeof(read_buf) - 1);
+
+            if (bytes_read > 0) {
+                printf("%s", read_buf);
+
+                // if firmware is ready, we can exit the reading loop
+                if (strstr(read_buf, "READY") != NULL) {
+                    break;
+                }
+            } else {
+                perror("Error during read");
+            }
+        }
+        printf("\n=> Test FINISHED.\n");
     }
     else
     {

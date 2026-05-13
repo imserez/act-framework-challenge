@@ -51,6 +51,7 @@ int serial_open(char *port, int baud)
 
 int write_to_device(int fd, char *msg)
 {
+    printf("Sending [%s] to device\n", msg);
     return write(fd, msg, sizeof(msg));
 }
 
@@ -75,7 +76,7 @@ void wait_response(int fd)
     }
     else
     {
-        char res_buf[256];
+        char res_buf[2048];
         memset(&res_buf, '\0', sizeof(res_buf));
 
         int bread = read(fd, res_buf, sizeof(res_buf) - 1);
