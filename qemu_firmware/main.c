@@ -33,10 +33,10 @@ void read_next(void) {
         buf[3] = uart_getc();
 
         if (buf[0] == 'P' && buf[1] == 'I' && buf[2] == 'N' && buf[3] == 'G') {
-            uart_puts("PONG\r\n");
+            uart_puts("PONG\r\n"); // Keep standard PONG response
         }
         else if (buf[0] == 'L' && buf[1] == 'O' && buf[2] == 'A' && buf[3] == 'D') {
-            uart_puts("Received LOAD command. Waiting for size\r\n");
+            uart_puts("[FIRMWARE] Command LOAD received. Awaiting payload size...\r\n");
 
             //de-serialize
             uint32_t size = 0;
@@ -45,14 +45,14 @@ void read_next(void) {
             size |= ((uint32_t)uart_getc()) << 16;
             size |= ((uint32_t)uart_getc()) << 24;
 
-            uart_puts("Loading program in memory...\r\n");
+            uart_puts("[FIRMWARE] Downloading binary payload into RAM...\r\n");
 
             uint8_t *dest = (uint8_t*)LOAD_ADDRESS;
             for (uint32_t i = 0; i < size; i++) {
                 dest[i] = uart_getc();
             }
 
-            uart_puts("Firmware loaded. Executing...\r\n");
+            uart_puts("[FIRMWARE] Transfer complete. Jumping to execution...\r\n");
 
             // clean before executing
             __asm__ volatile("fence.i");
@@ -65,19 +65,19 @@ void read_next(void) {
 
             // check if the result is correct or not
             if (result == 1) {
-                uart_puts("Test: [PASS]\r\n");
+                uart_puts("[FIRMWARE] RESULT: [PASS]\r\n");
             } else {
-                uart_puts("Test: [FAIL]\r\n");
+                uart_puts("[FIRMWARE] RESULT: [FAIL]\r\n");
             }
 
-            uart_puts("M-MODE FIRMWARE READY\r\n");
+            uart_puts("FIRMWARE READY\r\n");
             buf[0]=0; buf[1]=0; buf[2]=0; buf[3]=0;
         }
     }
 }
 
 int main(void) {
-    uart_puts("Firmware READY\r\n");
+    uart_puts("[FIRMWARE] System Booted. M-MODE FIRMWARE READY\r\n");
     read_next();
     return (0);
 }
