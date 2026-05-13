@@ -46,3 +46,30 @@ One of the main challenges today was correctly mapping and understanding the UAR
 - https://en.wikipedia.org/wiki/16550_UART
 - https://caro.su/msx/ocm_de1/16550.pdf
 - https://labs.dese.iisc.ac.in/embeddedlab/binary-file-transfer-over-uart-using-fifo-extension-of-uart-shell/
+
+## 13-05-2026
+
+Continued working on the coding challenge for the RISC-V ACT Framework Enablement and M-Mode Firmware Validation mentorship by 10xEngineers.
+
+Today I focused on establishing a minimal firmware loading workflow over UART and executing dynamically received binaries inside the emulated RISC-V environment.
+
+Current progress:
+
+- Implemented a basic handshake mechanism between the host-side program and the firmware
+- Added file transfer support over UART
+- Transmitted the binary size first so the firmware knows how many bytes must be received
+- Implemented byte-by-byte transfer
+- Loaded the received binary into a predefined memory location
+- Successfully jumped to the loaded memory address and executed the transferred test program
+
+The current loading strategy places the received binary 64KB above the firmware memory region. While experimenting with this approach, I started thinking about memory isolation and protection mechanisms. A future improvement could involve:
+
+- protecting the firmware memory region from accidental overwrites, defining safer execution boundaries, or implementing a "virtual memory/address translation mechanism" for the program test execution.
+
+I also explored different approaches for firmware-to-host result reporting. After reviewing how tohost communication is commonly used in RISC-V environments, I simplified the current validation flow by checking the program return status directly. Another possible approach could be exposing a dedicated shared memory address that the firmware periodically verifies.
+
+Additional topics explored today:
+
+- UART data deserialization using left-shift operations
+- Improving low-level logging and debugging visibility
+- Adding clearer and more expressive runtime logs to better trace communication and execution flow
