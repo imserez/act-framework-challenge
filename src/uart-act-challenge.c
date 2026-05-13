@@ -3,7 +3,7 @@
 void send_binary_file(int fd, const char *filepath) {
     FILE *file = fopen(filepath, "rb");
     if (!file) {
-        perror("=> [ERROR] Coult not open the .bin file");
+        printf("[ERROR] Could not open the .bin file: %s\n", filepath);
         return;
     }
 
@@ -12,45 +12,43 @@ void send_binary_file(int fd, const char *filepath) {
     uint32_t size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    printf("=> Sending (LOAD)...\n");
-    // write_to_device(fd, "LOAD");
+    printf("[INFO] Initiating LOAD protocol...\n");
     write(fd, "LOAD", 4);
-    usleep(200000); // safe-sleep here, to let firmware process LOAD
+    usleep(200000); // safe-sleep to let firmware process the command
 
-    printf("=> Sending the program size: [%u] bytes)...\n", size);
+    printf("[INFO] Sending payload size: %u bytes...\n", size);
     write(fd, &size, sizeof(uint32_t));
     usleep(200000);
 
-    printf("=> Sending binary...\n");
+    printf("[INFO] Transmitting binary data...\n");
     char buffer[1];
     for (uint32_t i = 0; i < size; i++) {
         fread(buffer, 1, 1, file);
         write(fd, buffer, 1);
-        //safe-delay
-        usleep(1000);
+        usleep(1000); // safe-delay to prevent buffer overflow
     }
 
     fclose(file);
-    printf("=> File successfuly sent.\n");
+    printf("[SUCCESS] File successfully transmitted.\n");
 }
 
 int main (int argc, char *argv[])
 {
     char *serial = DEFAULT_PORT;
 
-    printf("=====================================\n");
-    printf("========= UART-ACT-Connector ========\n");
-    printf("=====================================\n");
+    printf("=========================================\n");
+    printf("      UART-ACT-Connector (PoC Host)      \n");
+    printf("=========================================\n");
 
     if (argc != 2)
     {
-        printf("=> No serial specified, setting to default [%s]\n", DEFAULT_PORT);
+        printf("[INFO] No serial specified, using default: %s\n", DEFAULT_PORT);
     }
     else {
-        printf("=> Serial set to [%s]\n", argv[1]);
+        printf("[INFO] Serial set to: %s\n", argv[1]);
         serial = argv[1];
     }
-    printf("=> Trying to open port: [%s]...\n", serial);
+    printf("[INFO] Opening port: %s...\n", serial);
 
     int fd = serial_open(serial, B9600);
 
@@ -59,10 +57,14 @@ int main (int argc, char *argv[])
 
     if (option == 3) // Send file!
     {
-        printf("Preparing to send file...\n");
+        printf("\n[INFO] Preparing to send payload: sample_elf_programs/sum.bin\n");
         send_binary_file(fd, "sample_elf_programs/sum.bin");
 
-        printf("=> Waiting for test output from the board...\n\n");
+        printf("\n[INFO] Waiting for test execution on the target board...\n");
+        printf("-----------------------------------------\n");
+        printf("              TARGET OUTPUT              \n");
+        printf("-----------------------------------------\n");
+
         // wait for responses
         char read_buf[256];
         int bytes_read;
@@ -77,16 +79,20 @@ int main (int argc, char *argv[])
 
             if (bytes_read > 0) {
                 printf("%s", read_buf);
+                fflush(stdout); // Force print to screen immediately
 
                 // if firmware is ready, we can exit the reading loop
                 if (strstr(read_buf, "READY") != NULL) {
                     break;
                 }
-            } else {
-                perror("Error during read");
+            } else if (bytes_read == 0) {
+                printf("\n[ERROR] Target disconnected unexpectedly.\n");
+                break;
             }
         }
-        printf("\n=> Test FINISHED.\n");
+
+        printf("-----------------------------------------\n");
+        printf("[SUCCESS] Test execution and validation finished.\n");
     }
     else
     {
@@ -95,17 +101,17 @@ int main (int argc, char *argv[])
             msg[0] = 'P';  msg[1] = 'I';  msg[2] = 'N';  msg[3] = 'G';
         }
 
-        printf("=> Sending message [%s] to device: [%s]...\n", msg, serial);
+        printf("\n[INFO] Sending message to device: %s\n", serial);
         write_to_device(fd, msg);
 
-        printf("=> Waiting device response. Timeout at [%d] seconds...\n", TIMEOUT_SEC);
+        printf("[INFO] Waiting device response (Timeout: %d seconds)...\n", TIMEOUT_SEC);
 
         wait_response(fd);
     }
 
-    printf("=> Closing [%s] before exiting...\n", serial);
+    printf("\n[INFO] Closing port %s...\n", serial);
     close(fd);
-    printf("----------\n");
-    printf("Goodbye!\n");
+    printf("=========================================\n");
+    printf("Exiting. Goodbye!\n");
     return 0;
 }
