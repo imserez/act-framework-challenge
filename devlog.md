@@ -1,75 +1,231 @@
-## 11-05-2026
+# UART-ACT-Connector
 
-Started working on the coding challenge for the RISC-V ACT Framework Enablement and M-Mode Firmware Validation mentorship by 10xEngineers.
+This is my submission to the coding challenge "RISC-V ACT Framework Enablement and M-Mode Firmware Validation on Hardware Board (RISC-V Mentorship)" with 10xEngineers.
 
-Today I focused on understanding UART communication in Linux, using the `termios` API.
-The MVP of today:
+> **Development Log:** You can read my daily progress, thoughts, and debugging process during this challenge in the [devlog.md](./devlog.md) file.
 
-- Configure UART parameters
-- Implement read/write (nonblocking), using select with timeout
-- Implement a small menu, that later could be used to communicate and perform actions with the firmware.
+![Overview_gif](img/project.gif)
 
-I also started exploring how to emulate and validate the workflow using QEMU. The current idea is to:
+## What is this
 
-- Create virtual UART communication setup
-- Perform a ping-pong communication test
-- Connect a minimal RISC-V firmware environment
+This is a Proof-of-Concept framework designed to emulate a simple RISC-V ACT (Architecture Compliance Test) workflow sent over UART to a RISC-V machine.
 
-The main objective for now is to build a clean and reproducible low-level communication toolchain before moving into firmware validation workflows, while developing a solid understanding of robust UART communication and debugging flows.
+This project initializes and configures a UART interface using the termios API to transmit and receive messages.
 
-## 12-05-2026
+The correct behavior can be verified using a terminal with socat, and also, using QEMU simulating a RISC-V machine.
 
-Continued working on the coding challenge for the RISC-V ACT Framework Enablement and M-Mode Firmware Validation mentorship by 10xEngineers.
+- Responds to PING command
+- Accepts tests, simulating a simple ACT framework
 
-Today I focused on virtualizing the hardware environment using QEMU and establishing a functional UART communication workflow between the host and the emulated RISC-V machine.
+The project virtualizes a RISC-V machine using QEMU, establishes UART communication between host and a pre-loaded firmware on that machine, uploads binaries sent by UART to a specific memory location, jumps to that location to execute the program, and then validates the execution results.
 
-After reviewing the QEMU virt machine implementation and the corresponding virt.c source code, I identified the UART configuration used by the platform:
+## How it works?
 
-- NS16550A UART
-- MMIO-based communication
-- UART base address mapped at 0x10000000
-- Address range 0x10000000 - 0x100000FF
+The following diagram exposes my purpose of implementation in this repository:
 
-I also reviewed the 16550 UART architecture and explored how FIFO buffering and Line Status Register (LSR) polling work internally. The FIFO implementation and programmable trigger levels are particularly interesting for future improvements related to throughput and asynchronous communication handling.
+![Overview_diagram](img/overview_diagram.png)
 
-Current progress:
+We load the firmware in the device, that will handle the communication and tests execution from the machine that we want to test.
 
-Implemented basic UART polling using LSR registers
-Successfully achieved bidirectional ping-pong communication using the emulated environment
-Added new menu options for sending ping requests and file transfers directly from the host-side interface
+This firmware lives at memory `0x80000000`. This firmware loads the program that we want to test at memory `0x80010000`.
 
-One of the main challenges today was correctly mapping and understanding the UART register layout and status flags. The NS16550 documentation was especially helpful while debugging register interactions and validating the polling logic.
+The test executes, and could write in a particular region in memory (for example `0x80050000`), to then check for the PASS/FAIL status of the test.
 
-### Today's useful references
+The firmware could interrupt periodically the execution of the test, to verify that it's not hanging and to protect itself.
 
-- https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c
-- https://en.wikipedia.org/wiki/16550_UART
-- https://caro.su/msx/ocm_de1/16550.pdf
-- https://labs.dese.iisc.ac.in/embeddedlab/binary-file-transfer-over-uart-using-fifo-extension-of-uart-shell/
+## Challenges
 
-## 13-05-2026
+This proof of concept became a really interesting and challenging approach to the internship topic. While working with more complex RISC-V machines, I started thinking about many aspects beyond simply running the test program: restoring registers before execution, cleaning cache and memory properly, recovering the machine state afterwards, preventing the test program from hanging or modifying the firmware communication, and even implementing non-blocking UART communication.
 
-Continued working on the coding challenge for the RISC-V ACT Framework Enablement and M-Mode Firmware Validation mentorship by 10xEngineers.
+Even though this proof of concept does not solve all these problems, it made me genuinely interested in learning more about them and hopefully working on these challenges during the internship.
 
-Today I focused on establishing a minimal firmware loading workflow over UART and executing dynamically received binaries inside the emulated RISC-V environment.
+The coding challenge itself also came with several difficulties. Configuring UART correctly, establishing reliable communication, sending commands and receiving outputs, cross-compiling, learning about linkers, and understanding how to initialize everything with QEMU turned out to be a very enriching experience.
 
-Current progress:
+## File structure
 
-- Implemented a basic handshake mechanism between the host-side program and the firmware
-- Added file transfer support over UART
-- Transmitted the binary size first so the firmware knows how many bytes must be received
-- Implemented byte-by-byte transfer
-- Loaded the received binary into a predefined memory location
-- Successfully jumped to the loaded memory address and executed the transferred test program
+```text
+.
+├── devlog.md # Daily progress and development notes
+├── img/ # Screenshots and diagrams
+├── inc/ # C header files
+│ └── uart-act-challenge.h
+├── Makefile # Build script for the host application
+├── qemu_firmware/ # Bare-metal M-Mode firmware for QEMU
+│ ├── boot.S # Assembly startup code
+│ ├── main.c # Firmware logic (UART MMIO, LOAD, PING)
+│ ├── linker.ld # Firmware memory layout (starts at 0x80000000)
+│ └── run_qemu.sh # Script to compile firmware and launch QEMU
+├── README.md # Project documentation
+├── sample_elf_programs/ # Target test payloads
+│ ├── sum.c # Sample ACT-like test
+│ ├── linker.ld # Test memory layout (starts at 0x80010000)
+│ └── run_test.sh # Script to compile and convert .elf to .bin
+└── src/ # Host application source code
+├── interface.c # CLI menu and user interactions
+├── serial_comm.c # UART termios initialization and transmission
+└── uart-act-challenge.c # Main host program logic
+```
 
-The current loading strategy places the received binary 64KB above the firmware memory region. While experimenting with this approach, I started thinking about memory isolation and protection mechanisms. A future improvement could involve:
+## Features
 
-- protecting the firmware memory region from accidental overwrites, defining safer execution boundaries, or implementing a "virtual memory/address translation mechanism" for the program test execution.
+- UART communication using Linux `termios`
+- QEMU RISC-V hardware environment
+- PING/PONG MMIO communication
+- Binary transfers over UART
+- Dynamic execution from firmware
+- PoC Pass/Fail execution
+- Logging
+- Scripts to automate compilation of the tests and setting up the QEMU environment
 
-I also explored different approaches for firmware-to-host result reporting. After reviewing how tohost communication is commonly used in RISC-V environments, I simplified the current validation flow by checking the program return status directly. Another possible approach could be exposing a dedicated shared memory address that the firmware periodically verifies.
+## How to use
 
-Additional topics explored today:
+The first step to run this program is to compile using the provided `Makefile`, simply run `make` in the terminal:
 
-- UART data deserialization using left-shift operations
-- Improving low-level logging and debugging visibility
-- Adding clearer and more expressive runtime logs to better trace communication and execution flow
+```bash
+make
+```
+
+To execute the program, use the executable name: `uart-challenge`
+
+```bash
+./uart-challenge
+```
+
+### Simple communication
+
+![Socat_example_1](img/socat-example-1.png)
+
+For this setup, we're going to use `socat`.
+
+1. Set socat
+
+```bash
+socat -d -d pty,raw,echo=0 pty,raw,echo=0
+```
+
+In the `socat` output, we'll see the PTY that it opened to us.
+For this particular example, socat opened `/dev/pts/8`
+
+2. Update the PTY address in the program
+
+This can be done either in code or passing the PTY as a program parameter:
+
+```c
+
+# uart-act-challenge.h
+
+# define DEFAULT_PORT "/dev/pts/8" // Specify the correct one
+
+```
+
+Or we can launch the program with the parameters:
+
+```bash
+make
+./uart-challenge /dev/pts/8
+
+```
+
+3. Communicate with `socat`
+
+Now, we can communicate sending messages and see that socat effectively received the data in the terminal. We can also communicate and send responses using socat to the program. To do that, we should use the other socat terminal open. We can use echo to send messages to it:
+
+```bash
+echo "Hello!" > /dev/pts/7
+```
+
+![Socat_example_2](img/socat-example-2.png)
+
+### RISC-V Machine using QEMU
+
+#### What is QEMU?
+
+QEMU is an open-source machine emulator and virtualizer. In this project, we use it to emulate a 64-bit RISC-V hardware board (virt machine). This allows us to run our custom M-mode bare-metal firmware, load binaries into RAM, and execute them without needing a physical RISC-V board.
+
+#### Prerequisites
+
+To run the emulation and compile the target tests, you need to install the following packages:
+
+- `qemu-system-riscv64`: The QEMU emulator for RISC-V architectures.
+- `riscv64-unknown-elf-gcc`: The RISC-V GNU Compiler Toolchain for bare-metal cross-compilation.
+- `socat`: To establish the virtual serial ports (PTYs).
+
+1. Set the environment
+
+You can prepare your environment using the provided script in `qemu_firmware/run_qemu.sh`
+
+```bash
+chmod +x qemu_firmware/run_qemu.sh
+./qemu_firmware/run_qemu.sh
+```
+
+What this script does is compile the boot assembly, main firmware file, and linker script into an ELF file that will be loaded as our RISC-V Machine kernel.
+
+```bash
+
+# COMPILE
+
+riscv64-unknown-elf-gcc -nostdlib -fno-builtin -mcmodel=medany -march=rv64g -mabi=lp64 -T qemu_firmware/linker.ld qemu_firmware/boot.S qemu_firmware/main.c -o qemu_firmware/firmware.elf
+
+# RUN QEMU
+
+qemu-system-riscv64 -machine virt -nographic -bios none -kernel qemu_firmware/firmware.elf -serial pty
+```
+
+2. Set the test
+
+In order to load a program to the firmware we've just compiled for QEMU, we'll use the script provided in `sample_elf_programs/run_test.sh`.
+
+```bash
+chmod +x sample_elf_programs/run_test.sh
+./sample_elf_programs/run_test.sh
+```
+
+What this script does is compile the test using a specific linker script (this is important because the test needs to be mapped to the `0x80010000` memory region) to an ELF file. Then, using `objcopy`, we extract the raw machine code to a `.bin` file so it can be transmitted byte-by-byte over UART.
+
+There's also a debug print with `objdump`.
+
+```bash
+
+# Compile
+
+riscv64-unknown-elf-gcc -nostdlib -fno-builtin -mcmodel=medany -march=rv64g -mabi=lp64 -T sample_elf_programs/linker.ld sample_elf_programs/sum.c -o sample_elf_programs/sum.elf
+
+# Console debug
+
+riscv64-unknown-elf-objdump -d sample_elf_programs/sum.elf
+
+# Convert .elf to .bin
+
+riscv64-unknown-elf-objcopy -O binary sample_elf_programs/sum.elf sample_elf_programs/sum.bin
+```
+
+## Coding Challenge Requirements Fulfilled
+
+This repository fully satisfies the requirements outlined in the 10xEngineers mentorship challenge:
+
+- **UART Initialization:** Configured UART parameters (baud rate B9600, data bits) and disabled parity/echo using the `termios` API on Linux.
+- **Transmission:** Successfully established the transmission of test messages and binary payloads over the UART interface.
+- **Reception:** Implemented incoming data reception (PING/PONG, status logs) using non-blocking reads and safe delays.
+- **Console Output:** Designed a clean console interface to print the received data and system statuses correctly.
+- **Error Handling:** Gracefully handles errors such as invalid device paths, unexpected disconnections, and prevents read/write buffer overflows.
+- **Documentation:** Included clear and well-structured comments throughout the codebase explaining the MMIO, firmware loading, and `termios` implementations.
+
+## Technologies utilized
+
+- **C / Bare-Metal C:** Core implementation language for both the host connector and the RISC-V firmware.
+- **RISC-V Assembly:** Minimal boot logic.
+- **Linux System Programming:** POSIX `termios` API for low-level serial communication.
+- **QEMU:** `qemu-system-riscv64` for full system emulation.
+- **RISC-V GNU Toolchain:** Cross-compilation (x86 -> RV64) using `gcc`, `objcopy`, and `objdump`.
+- **Shell Scripting:** Build automation and environment setup.
+
+## Resources
+
+- [RISC-V](https://github.com/riscv)
+- [RISC-V ACT Framework tests](https://github.com/riscv/riscv-arch-test)
+- [LFX Mentorship - 10xEngineers](https://riscv.org/job/risc-v-act-framework-enablement-and-m-mode-firmware-validation-on-hardware-board-risc-v-mentorship/)
+- [QEMU](https://www.qemu.org/)
+- [UART Configuration in QEMU virt machine](https://caro.su/msx/ocm_de1/16550.pdf)
+- [Linux Termios API Documentation (man pages)](https://man7.org/linux/man-pages/man3/termios.3.html)
+- [SOCAT](https://www.redhat.com/en/blog/getting-started-socat)
