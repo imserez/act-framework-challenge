@@ -73,3 +73,9 @@ Additional topics explored today:
 - UART data deserialization using left-shift operations
 - Improving low-level logging and debugging visibility
 - Adding clearer and more expressive runtime logs to better trace communication and execution flow
+
+## 15-05-2026
+
+Today I finalized the README and completed the mentorship application before the May 17 deadline.
+
+With the proof of concept and documentation now in place, I feel this work helped me better understand the practical challenges behind firmware validation on RISC-V systems. I would be very glad to continue developing these ideas further as part of the mentorship, especially around robustness, machine-state recovery, memory protection, and more reliable communication workflows.
