@@ -13,15 +13,17 @@
 
 # define TIMEOUT_SEC 2
 # define DEFAULT_PORT "/dev/pts/8"
-# define LOG_LEVEL 2 // (min) 0,1,2 (max)
+# define BAUD B9600
+
 
 // serial_comm.c
-int serial_open(char *port, int baud);
-int write_to_device(int fd, char *msg);
-void wait_response(int fd);
+int     serial_open(const char *port);
+int     write_to_device(int fd, const char *msg);
+void    wait_response(int fd);
+int     serial_configuration(const char *port, int fd);
 
 // interface.c
-void print_welcome(void);
-int write_options_menu(char *msg);
+void    print_welcome(void);
+int     write_options_menu(char *msg);
 
 #endif

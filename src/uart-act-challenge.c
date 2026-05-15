@@ -1,61 +1,115 @@
 #include "../inc/uart-act-challenge.h"
 
-void send_binary_file(int fd, const char *filepath) {
+/* Read target output after sending the binary until READY is received */
+static void wait_test_output(int fd)
+{
+    char read_buf[256];
+    int bytes_read;
+
+    /* Small delay to give the firmware time to start the test */
+    usleep(500000);
+
+    while (1)
+    {
+        memset(read_buf, 0, sizeof(read_buf));
+        bytes_read = read(fd, read_buf, sizeof(read_buf) - 1);
+
+        if (bytes_read > 0)
+        {
+            printf("%s", read_buf);
+            fflush(stdout);
+
+            /* Check if firmware has finished */
+            if (strstr(read_buf, "READY") != NULL)
+                break;
+        }
+        else if (bytes_read == 0)
+        {
+            printf("\n[ERROR] Target disconnected unexpectedly.\n");
+            break;
+        }
+    }
+}
+
+/* Send a binary file to the firmware using the simple LOAD protocol */
+static void send_binary_file(int fd, const char *filepath)
+{
     FILE *file = fopen(filepath, "rb");
-    if (!file) {
+    if (!file)
+    {
         printf("[ERROR] Could not open the .bin file: %s\n", filepath);
         return;
     }
 
-    // calculate file size in bytes
+    /* Calculate the file size in bytes */
     fseek(file, 0, SEEK_END);
     uint32_t size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
     printf("[INFO] Initiating LOAD protocol...\n");
     write(fd, "LOAD", 4);
-    usleep(200000); // safe-sleep to let firmware process the command
+    usleep(200000);
 
     printf("[INFO] Sending payload size: %u bytes...\n", size);
     write(fd, &size, sizeof(uint32_t));
     usleep(200000);
 
     printf("[INFO] Transmitting binary data...\n");
+
     char buffer[1];
-    for (uint32_t i = 0; i < size; i++) {
-        fread(buffer, 1, 1, file);
+    for (uint32_t i = 0; i < size; i++)
+    {
+        if (fread(buffer, 1, 1, file) != 1)
+        {
+            printf("[ERROR] Failed while reading binary file.\n");
+            fclose(file);
+            return;
+        }
+
         write(fd, buffer, 1);
-        usleep(1000); // safe-delay to prevent buffer overflow
+        usleep(1000);
     }
 
     fclose(file);
     printf("[SUCCESS] File successfully transmitted.\n");
 }
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-    char *serial = DEFAULT_PORT;
+    char *port = DEFAULT_PORT;
+    char msg[256] = "";
+    int option;
+    int fd;
 
-    printf("=========================================\n");
-    printf("      UART-ACT-Connector (PoC Host)      \n");
-    printf("=========================================\n");
+    print_welcome();
 
+    /* If no port is provided, use the default one */
     if (argc != 2)
     {
-        printf("[INFO] No serial specified, using default: %s\n", DEFAULT_PORT);
+        printf("[INFO] No serial port specified, using default: %s\n", DEFAULT_PORT);
     }
-    else {
-        printf("[INFO] Serial set to: %s\n", argv[1]);
-        serial = argv[1];
+    else
+    {
+        printf("[INFO] Serial port set to: %s\n", argv[1]);
+        port = argv[1];
     }
-    printf("[INFO] Opening port: %s...\n", serial);
 
-    int fd = serial_open(serial, B9600);
+    /* Open the UART device */
+    fd = serial_open(port);
+    if (fd < 0)
+        return 1;
 
-    char msg[256] = "";
-    int option = write_options_menu(msg);
+    /* Configure the serial port before starting communication */
+    if (serial_configuration(port, fd) < 0)
+    {
+        close(fd);
+        return 1;
+    }
 
-    if (option == 3) // Send file!
+    /* Show menu and get the user action */
+    option = write_options_menu(msg);
+
+    if (option == 3)
     {
         printf("\n[INFO] Preparing to send payload: sample_elf_programs/sum.bin\n");
         send_binary_file(fd, "sample_elf_programs/sum.bin");
@@ -65,53 +119,28 @@ int main (int argc, char *argv[])
         printf("              TARGET OUTPUT              \n");
         printf("-----------------------------------------\n");
 
-        // wait for responses
-        char read_buf[256];
-        int bytes_read;
-
-        // safe-delay for test to init
-        usleep(500000);
-
-        // read the response
-        while (1) {
-            memset(read_buf, 0, sizeof(read_buf));
-            bytes_read = read(fd, read_buf, sizeof(read_buf) - 1);
-
-            if (bytes_read > 0) {
-                printf("%s", read_buf);
-                fflush(stdout); // Force print to screen immediately
-
-                // if firmware is ready, we can exit the reading loop
-                if (strstr(read_buf, "READY") != NULL) {
-                    break;
-                }
-            } else if (bytes_read == 0) {
-                printf("\n[ERROR] Target disconnected unexpectedly.\n");
-                break;
-            }
-        }
+        wait_test_output(fd);
 
         printf("-----------------------------------------\n");
         printf("[SUCCESS] Test execution and validation finished.\n");
     }
     else
     {
+        /* Option 2 sends a fixed PING message */
         if (option == 2)
-        {
-            msg[0] = 'P';  msg[1] = 'I';  msg[2] = 'N';  msg[3] = 'G';
-        }
+            strcpy(msg, "PING");
 
-        printf("\n[INFO] Sending message to device: %s\n", serial);
+        printf("\n[INFO] Sending message to device: %s\n", msg);
         write_to_device(fd, msg);
 
         printf("[INFO] Waiting device response (Timeout: %d seconds)...\n", TIMEOUT_SEC);
-
         wait_response(fd);
     }
 
-    printf("\n[INFO] Closing port %s...\n", serial);
+    printf("\n[INFO] Closing port %s...\n", port);
     close(fd);
     printf("=========================================\n");
     printf("Exiting. Goodbye!\n");
+
     return 0;
 }
