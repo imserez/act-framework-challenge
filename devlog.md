@@ -76,6 +76,6 @@ Additional topics explored today:
 
 ## 15-05-2026
 
-Today I finalized the README and completed the mentorship application before the May 17 deadline.
+Today I finalized the README and completed the mentorship application before the May 17 deadline. I've also refactored part of the code and added comments for clarifications
 
 With the proof of concept and documentation now in place, I feel this work helped me better understand the practical challenges behind firmware validation on RISC-V systems. I would be very glad to continue developing these ideas further as part of the mentorship, especially around robustness, machine-state recovery, memory protection, and more reliable communication workflows.
